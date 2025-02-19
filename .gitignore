@@ -1,18 +1,144 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+#!/bin/bash 
 
-# Other files and folders
-.settings/
+# Colours 
+greenColour="\e[0;32m\033[1m"
+endColour="\033[0m\e[0m"
+redColour="\e[0;31m\033[1m"
+blueColour="\e[0;34m\033[1m"
+yellowColour="\e[0;33m\033[1m"
+purpleColour="\e[0;35m\033[1m"
+turquoiseColour="\e[0;36m\033[1m"
+grayColour="\e[0;37m\033[1m"
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+function ctrl_c(){
+    echo -e "\n\n${redColour}[!] Saliendo...${endColour}\n"
+    tput cnorm && exit 1
+}
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Ctrl+c
+trap ctrl_c INT 
+
+# Variables globales 
+Main_url="https://htbmachines.github.io/bundle.js"
+
+function helpPanel(){
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Uso:${endColour}"            
+    echo -e "\t${purpleColour}u)${endColour} ${grayColour}Descargar o actualizar archivos necesarios${endColour}"    
+    echo -e "\t${purpleColour}d)${endColour} ${grayColour}Buscar por la dificultad de la maquina${endColour}"    
+    echo -e "\t${purpleColour}m)${endColour}${grayColour} Buscar por un nombre de maquina${endColour}"
+    echo -e "\t${purpleColour}s)${endColour}${grayColour} Buscar por Skill${endColour}"
+    echo -e "\t${purpleColour}o)${endColour}${grayColour} Buscar por el sistema operativo${endColour}"                                                                                                                               
+    echo -e "\t${purpleColour}i)${endColour}${grayColour} Buscar por Direccion IP${endColour}"                                                                                                                                      
+    echo -e "\t${purpleColour}h)${endColour}${grayColour} Abrir este panel de ayuda${endColours}\n"                                                                                                                                        
+}                                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                           
+function updateFiles(){                                                                                                                                                                                                                    
+    if [ ! -f bundle.js ]; then                                                                                                                                                                                                            
+        tput civis                                                                                                                                                                                                                         
+        echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"                                                                                                                             
+        curl -s $Main_url > bundle.js                                                                                                                                                                                                      
+        js-beautify bundle.js | sponge bundle.js                                                                                                                                                                                           
+        echo -e "\n${yellowColour}[+]${endColour}${grayColour} Todos los archivos han sido descargados${endColour}"                                                                                                                        
+        tput cnorm                                                                                                                                                                                                                         
+    else                                                                                                                                                                                                                                   
+        tput civis                                                                                                                                                                                                                         
+        echo -e "\n${yellowColour}[+]${endColour}${grayColour} Comprobando si hay actualizaciones pendientes...${endColour}"                                                                                                               
+        curl -s $Main_url > bundle_temp.js                                                                                                                                                                                                 
+        js-beautify bundle_temp.js | sponge bundle_temp.js                                                                                                                                                                                 
+        md5_temp_value=$(md5sum bundle_temp.js | awk '{print $1}')                                                                                                                                                                         
+        md5_original_value=$(md5sum bundle.js | awk '{print $1}')                                                                                                                                                                          
+
+        if [ "$md5_temp_value" == "$md5_original_value" ]; then  
+            echo -e "\n${yellowColour}[+]${endColour}${grayColour} No se han detectado actualizaciones pendientes, tienes todo al dia ;)${endColour}"
+            rm bundle_temp.js
+
+        else 
+            echo -e "\n${yellowColour}[+]${endColour}${grayColour} Hay actualizaciones mi crazy, tranquilo yo se las hago :)${endColour}"
+            rm bundle.js && mv bundle_temp.js bundle.js 
+            echo -e "\n${yellowColour}[+]${endColour}${grayColour} Todos los archivos han sido actualizados${endColour}"
+        fi 
+        tput cnorm 
+    fi 
+}
+
+function searchMachine(){
+    machineName="$1"
+ 
+    machineName_checker="$(cat bundle.js | awk "/name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta" | tr -d '"' | tr -d ',' | sed 's/^ *//')"
+    
+    if [ "$machineName_checker" ]; then
+
+    echo -e "\n${yellowColour}[+]${endColour}${grayColour} Listando las propiedades de la maquina${endColour}${blueColour} $machineName${endColour}${grayColour}:${endColour}\n"
+    cat bundle.js | awk "/name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta" | tr -d '"' | tr -d ',' | sed 's/^ *//'
+
+else 
+
+    echo -e "\n${redColour}[!]${endColour}${grayColour} La maquina proporcionada no existe ${endColour}\n"
+    fi 
+}
+
+function searchIP(){
+    ipAddress="$1"
+     
+
+    machineName="$(cat bundle.js | grep "ip: \"$ipAddress\"" -B 3 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',')"
+    
+     if [ "$machineName" ]; then
+    echo -e "\n${yellowColour}[+]${endColour}${grayColour} La maquina correspondiente para la ip${endColour}${purpleColour} $ipAddress${endColour}${grayColour} es${endColour}${blueColour} $machineName${endColour}"
+else
+    echo -e "\n${redColour}[!]${endColour}${grayColour} La ip proporcionada no corresponde a ninguna maquina${endColour}\n"
+    fi
+}
+
+function getMachinesDifficulty(){
+  difficulty="$1"
+
+  results_check="$(cat bundle.js | grep "dificultad: \"$difficulty\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column)"
+
+  if [ "$results_check" ]; then
+    echo -e "\n${yellowColour}[+]${endColour}${grayColour} Representando las maquinas con la dificultad${endColour}${blueColour} $difficulty${endColour}\n"
+    cat bundle.js | grep "dificultad: \"$difficulty\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column
+  else 
+    echo -e "\n${yellowColour}[+] La dificultad indicada no existe${endColour}\n"
+  fi
+
+}
+
+function getOSMachines(){
+    os="$1"
+    os_results="$(cat bundle.js | grep "so: \"$os\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column)"
+    if [ "$os_results" ]; then
+      echo -e "\n${yellowColour}[+]${endColour}${grayColour} Mostrando las maquinas con el sistema operativo${endColour}${blueColour} $os${endColour}${grayColour}:${endColour}\n"
+      cat bundle.js | grep "so: \"$os\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column
+    else
+      echo -e "\n${redColour}[!]${endColour}${grayColour} El sistema operativo indicado no existe${endColour}\n"
+
+    fi
+}
+
+function getOSDifficultyMachines(){
+    difficulty="$1"
+    os="$2"
+    
+
+    check_results="$(cat bundle.js | grep "so: \"$os\"" -C 4 | grep "dificultad: \"$difficulty\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column)"
+
+    if [ "$check_results" ]; then
+    echo -e "\n${yellowColour}[+]${endColour}${grayColour} Listando las maquinas de dificultad${endColour} ${purpleColour}$difficulty${endColour}${endColour}${grayColour} que tengan sistema operativo${endColour}${blueColour} $os${endColour}${yellowColour}:${endColour}\n"
+    cat bundle.js | grep "so: \"$os\"" -C 4 | grep "dificultad: \"$difficulty\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column
+  else
+    echo -e "\n ${redColour}[!] Se ha indicado una dificultad o sistema operativo incorrecto${endColour}\n"
+    fi 
+}
+
+function getSkill(){
+    skill="$1"
+
+    check_skill="$(cat bundle.js | grep "skills: " -B 6 | grep "$skill" -i -B 6 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column)"
+    if [ "$check_skill" ]; then
+      echo -e "\n${yellowColour}[+]${endColour}${grayColour} Mostrando las maquinas que utilizan la Skill${endColour} ${blueColour}$skill${endColour}${yellowColour}:${endColour}\n"
+       cat bundle.js | grep "skills: " -B 6 | grep "$skill" -i -B 6 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | column
+     else 
+       echo -e "\n${redColour}[!] No se ha encontrado ninguna maquina con la Skill proporcionada${endColour}\n"
+    fi 
+}

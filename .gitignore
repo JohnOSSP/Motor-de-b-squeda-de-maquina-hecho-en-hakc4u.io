@@ -142,3 +142,43 @@ function getSkill(){
        echo -e "\n${redColour}[!] No se ha encontrado ninguna maquina con la Skill proporcionada${endColour}\n"
     fi 
 }
+
+
+# Indicadores
+declare -i parameter_counter=0
+
+# Chivatos 
+declare -i chivato_difficulty=0 
+declare -i chivato_os=0 
+
+while getopts "m:ui:d:o:s:h" arg; do 
+    case $arg in 
+        m) machineName="$OPTARG"; let parameter_counter+=1;;
+        u) let parameter_counter+=2;;
+        i) ipAddress="$OPTARG"; let parameter_counter+=3;;
+        d) difficulty="$OPTARG"; chivato_difficulty=1; let parameter_counter+=4;;
+        o) os="$OPTARG"; chivato_os=1; let parameter_counter+=5;;
+        s) skill="$OPTARG"; let parameter_counter+=6;;  
+        h) ;;
+    esac 
+done 
+
+if [ $parameter_counter -eq 1 ]; then
+    searchMachine $machineName 
+elif [ $parameter_counter -eq 2 ]; then 
+    updateFiles 
+elif [ $parameter_counter -eq 3 ]; then 
+    searchIP $ipAddress
+elif [ $parameter_counter -eq 4 ]; then
+    getMachinesDifficulty $difficulty
+elif [ $parameter_counter -eq 5 ]; then 
+    getOSMachines $os
+elif [ $parameter_counter -eq 6 ]; then 
+    getSkill "$skill" 
+elif [ $chivato_difficulty -eq 1 ] && [ $chivato_os -eq 1 ]; then
+    getOSDifficultyMachines $difficulty $os
+
+else 
+    helpPanel 
+fi
+
